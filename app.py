@@ -20,7 +20,7 @@ current_location = st.selectbox(
 st.divider()
 
 # =====================================================================
-# 2. OPENROUTER SECURE RELAY ENGINE (Bypasses Data-Center IP Blocks)
+# 2. ROBUST SECURE RELAY ENGINE (Fault-Tolerant JSON Parsing)
 # =====================================================================
 if st.button("Generate Current Phase Optimization", type="primary"):
     api_key = os.getenv("OPENAI_API_KEY")
@@ -50,16 +50,19 @@ if st.button("Generate Current Phase Optimization", type="primary"):
             
             user_prompt = f"Evaluate current metrics:\n- Current Time: {input_time}\n- Current Location: {current_location}"
             
-            # Swapping endpoint to OpenRouter's secure public endpoint
             url = "https://openrouter.ai"
             
+            # FIXED HEADERS: OpenRouter explicitly requires HTTP-Referer and X-Title fields 
+            # to validate server configurations and prevent empty 400 responses.
             headers = {
                 "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://streamlit.io",
+                "X-Title": "Ottawa Driver OS"
             }
             
             payload = {
-                "model": "openai/gpt-4o-mini", # Calls the exact same model via OpenRouter's wrapper
+                "model": "openai/gpt-4o-mini",
                 "temperature": 0.1,
                 "messages": [
                     {"role": "system", "content": system_prompt},
@@ -71,22 +74,37 @@ if st.button("Generate Current Phase Optimization", type="primary"):
                 response = requests.post(url, json=payload, headers=headers, timeout=15)
                 
                 if response.status_code == 200:
-                    raw_text = response.json()['choices']['message']['content'].strip()
+                    response_json = response.json()
                     
-                    if raw_text.startswith("```"):
-                        raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+                    # Fault tolerance: Ensure choices array exists in returned token block
+                    if 'choices' in response_json and len(response_json['choices']) > 0:
+                        raw_text = response_json['choices'][0]['message']['content'].strip()
                         
-                    data = json.loads(raw_text)
-                    
-                    st.write("### 🧠 Live Quantum Dispatch Instruction")
-                    st.info(
-                        f"⏱️ *Active Phase:* **{data.get('shift_phase', 'Active Shift')}**\n\n"
-                        f"🎯 *DIRECTIVE:* {data.get('actionable_instruction', '')}\n\n"
-                        f"📍 *Target Hub:* {data.get('target_zone', '')}\n\n"
-                        f"🧠 *Strategy Matrix:* {data.get('reasoning', '')}"
-                    )
-                    st.caption(f"Calculated dynamically at: {time.strftime('%I:%M:%S %p')}")
+                        # Strip any accidental wrapping text code blocks if appended by the model
+                        if raw_text.startswith("```"):
+                            raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+                        
+                        try:
+                            # Parse JSON natively
+                            data = json.loads(raw_text)
+                            
+                            # Render UI Cards
+                            st.write("### 🧠 Live Quantum Dispatch Instruction")
+                            st.info(
+                                f"⏱️ *Active Phase:* **{data.get('shift_phase', 'Active Shift')}**\n\n"
+                                f"🎯 *DIRECTIVE:* {data.get('actionable_instruction', '')}\n\n"
+                                f"📍 *Target Hub:* {data.get('target_zone', '')}\n\n"
+                                f"🧠 *Strategy Matrix:* {data.get('reasoning', '')}"
+                            )
+                            st.caption(f"Calculated dynamically at: {time.strftime('%I:%M:%S %p')}")
+                        except json.JSONDecodeError as je:
+                            st.error("JSON Parsing Error: The model returned a text block instead of formatted JSON data.")
+                            st.text(f"Raw Output Received:\n{raw_text}")
+                    else:
+                        st.error("API Response structure was unexpected. Missing choices data block.")
+                        st.json(response_json)
                 else:
-                    st.error(f"OpenRouter Gateway Error: Code {response.status_code} - {response.text}")
+                    st.error(f"OpenRouter Connection Error: Code {response.status_code}")
+                    st.text(response.text)
             except Exception as e:
                 st.error(f"Execution Engine Fault: {str(e)}")
