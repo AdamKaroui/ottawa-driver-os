@@ -1,8 +1,8 @@
 import os
 import time
 import json
-import requests
 import streamlit as st
+from openai import OpenAI
 
 # =====================================================================
 # 1. STREAMLIT FRONTEND & THEME CONFIGURATION
@@ -20,7 +20,7 @@ current_location = st.selectbox(
 st.divider()
 
 # =====================================================================
-# 2. FIREWALL-BYPASS REST ENGINE (No Imports, Bypasses Cloudflare 403)
+# 2. OFFICIAL SDK EXECUTION ENGINE (Bypasses Cloudflare 403 Firewalls)
 # =====================================================================
 if st.button("Generate Current Phase Optimization", type="primary"):
     api_key = os.getenv("OPENAI_API_KEY")
@@ -30,7 +30,7 @@ if st.button("Generate Current Phase Optimization", type="primary"):
     else:
         input_time = time.strftime("%I:%M %p")
         
-        with st.spinner("Processing timeframe parameters via Secure Channel..."):
+        with st.spinner("Processing timeframe parameters via OpenAI SDK..."):
             system_prompt = (
                 "You are the shift-coaching engine for an Ottawa ride-hailing driver.\n"
                 "Vehicle Profile: Rented 2023 Polestar 2 via Weeve (Unlimited mileage, \$0/km depreciation).\n"
@@ -50,46 +50,38 @@ if st.button("Generate Current Phase Optimization", type="primary"):
             
             user_prompt = f"Evaluate current metrics:\n- Current Time: {input_time}\n- Current Location: {current_location}"
             
-            url = "https://openai.com"
-            
-            # CRUCIAL DEVELOPMENT FIX: Injecting custom browser headers 
-            # This makes the server look like an organic iPhone browser call to slip past Cloudflare filters
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
-            }
-            
-            payload = {
-                "model": "gpt-4o-mini",
-                "temperature": 0.1,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ]
-            }
-            
             try:
-                response = requests.post(url, json=payload, headers=headers, timeout=15)
+                # Initialize the official secure connection client
+                client = OpenAI(api_key=api_key)
                 
-                if response.status_code == 200:
-                    raw_text = response.json()['choices']['message']['content'].strip()
-                    
-                    if raw_text.startswith("```"):
-                        raw_text = raw_text.replace("```json", "").replace("```", "").strip()
-                        
-                    data = json.loads(raw_text)
-                    
-                    st.write("### 🧠 Live Quantum Dispatch Instruction")
-                    st.info(
-                        f"⏱️ *Active Phase:* **{data.get('shift_phase', 'Active Shift')}**\n\n"
-                        f"🎯 *DIRECTIVE:* {data.get('actionable_instruction', '')}\n\n"
-                        f"📍 *Target Hub:* {data.get('target_zone', '')}\n\n"
-                        f"🧠 *Strategy Matrix:* {data.get('reasoning', '')}"
-                    )
-                    st.caption(f"Calculated dynamically at: {time.strftime('%I:%M:%S %p')}")
-                else:
-                    st.error(f"OpenAI Gateway Connection Error: Code {response.status_code}")
-                    st.warning("Ensure your OpenAI account billing balance is active and funded.")
+                # Execute standard chat completion block
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    temperature=0.1,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ]
+                )
+                
+                raw_text = response.choices[0].message.content.strip()
+                
+                # Clean clean response if fallback formatting triggers code ticks
+                if raw_text.startswith("```"):
+                    raw_text = raw_text.replace("```json", "").replace("```", "").strip()
+                
+                # Parse string using native JSON
+                data = json.loads(raw_text)
+                
+                # Output verified UI Card metrics
+                st.write("### 🧠 Live Quantum Dispatch Instruction")
+                st.info(
+                    f"⏱️ *Active Phase:* **{data.get('shift_phase', 'Active Shift')}**\n\n"
+                    f"🎯 *DIRECTIVE:* {data.get('actionable_instruction', '')}\n\n"
+                    f"📍 *Target Hub:* {data.get('target_zone', '')}\n\n"
+                    f"🧠 *Strategy Matrix:* {data.get('reasoning', '')}"
+                )
+                st.caption(f"Calculated dynamically at: {time.strftime('%I:%M:%S %p')}")
+                
             except Exception as e:
-                st.error(f"Execution Engine Fault: {str(e)}")
+                st.error(f"Execution Engine Vault: {str(e)}")
