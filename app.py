@@ -20,17 +20,17 @@ current_location = st.selectbox(
 st.divider()
 
 # =====================================================================
-# 2. FIREWALL-BYPASS REST ENGINE (No Imports, Bypasses Cloudflare 403)
+# 2. OPENROUTER SECURE RELAY ENGINE (Bypasses Data-Center IP Blocks)
 # =====================================================================
 if st.button("Generate Current Phase Optimization", type="primary"):
     api_key = os.getenv("OPENAI_API_KEY")
     
     if not api_key:
-        st.error("Error: OPENAI_API_KEY secret is not configured in your Streamlit Advanced settings panel.")
+        st.error("Error: API Key secret is not configured in your Streamlit Advanced settings panel.")
     else:
         input_time = time.strftime("%I:%M %p")
         
-        with st.spinner("Processing timeframe parameters via Secure Channel..."):
+        with st.spinner("Routing parameters securely via OpenRouter Relay..."):
             system_prompt = (
                 "You are the shift-coaching engine for an Ottawa ride-hailing driver.\n"
                 "Vehicle Profile: Rented 2023 Polestar 2 via Weeve (Unlimited mileage, \$0/km depreciation).\n"
@@ -50,18 +50,16 @@ if st.button("Generate Current Phase Optimization", type="primary"):
             
             user_prompt = f"Evaluate current metrics:\n- Current Time: {input_time}\n- Current Location: {current_location}"
             
-            url = "https://openai.com"
+            # Swapping endpoint to OpenRouter's secure public endpoint
+            url = "https://openrouter.ai"
             
-            # CRUCIAL DEVELOPMENT FIX: Injecting custom browser headers 
-            # This makes the server look like an organic iPhone browser call to slip past Cloudflare filters
             headers = {
                 "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+                "Content-Type": "application/json"
             }
             
             payload = {
-                "model": "gpt-4o-mini",
+                "model": "openai/gpt-4o-mini", # Calls the exact same model via OpenRouter's wrapper
                 "temperature": 0.1,
                 "messages": [
                     {"role": "system", "content": system_prompt},
@@ -89,7 +87,6 @@ if st.button("Generate Current Phase Optimization", type="primary"):
                     )
                     st.caption(f"Calculated dynamically at: {time.strftime('%I:%M:%S %p')}")
                 else:
-                    st.error(f"OpenAI Gateway Connection Error: Code {response.status_code}")
-                    st.warning("Ensure your OpenAI account billing balance is active and funded.")
+                    st.error(f"OpenRouter Gateway Error: Code {response.status_code} - {response.text}")
             except Exception as e:
                 st.error(f"Execution Engine Fault: {str(e)}")
