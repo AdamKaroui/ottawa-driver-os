@@ -20,13 +20,16 @@ current_location = st.selectbox(
 st.divider()
 
 # =====================================================================
-# 2. ROBUST SECURE RELAY ENGINE (Fault-Tolerant JSON Parsing)
+# 2. ROBUST SECURE RELAY ENGINE (Direct Streamlit Secrets Target)
 # =====================================================================
 if st.button("Generate Current Phase Optimization", type="primary"):
-    api_key = os.getenv("OPENAI_API_KEY")
+    
+    # SYSTEM CORRECTIVE: Accessing the key directly via Streamlit's global secrets matrix 
+    # to bypass the empty container environment variable problem.
+    api_key = st.secrets.get("OPENAI_API_KEY")
     
     if not api_key:
-        st.error("Error: API Key secret is not configured in your Streamlit Advanced settings panel.")
+        st.error("Configuration Error: The 'OPENAI_API_KEY' variable could not be read. Ensure it is added to your Streamlit Advanced Secrets dashboard box.")
     else:
         input_time = time.strftime("%I:%M %p")
         
@@ -52,8 +55,6 @@ if st.button("Generate Current Phase Optimization", type="primary"):
             
             url = "https://openrouter.ai"
             
-            # FIXED HEADERS: OpenRouter explicitly requires HTTP-Referer and X-Title fields 
-            # to validate server configurations and prevent empty 400 responses.
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -76,19 +77,15 @@ if st.button("Generate Current Phase Optimization", type="primary"):
                 if response.status_code == 200:
                     response_json = response.json()
                     
-                    # Fault tolerance: Ensure choices array exists in returned token block
                     if 'choices' in response_json and len(response_json['choices']) > 0:
-                        raw_text = response_json['choices'][0]['message']['content'].strip()
+                        raw_text = response_json['choices']['message']['content'].strip()
                         
-                        # Strip any accidental wrapping text code blocks if appended by the model
                         if raw_text.startswith("```"):
                             raw_text = raw_text.replace("```json", "").replace("```", "").strip()
                         
                         try:
-                            # Parse JSON natively
                             data = json.loads(raw_text)
                             
-                            # Render UI Cards
                             st.write("### 🧠 Live Quantum Dispatch Instruction")
                             st.info(
                                 f"⏱️ *Active Phase:* **{data.get('shift_phase', 'Active Shift')}**\n\n"
